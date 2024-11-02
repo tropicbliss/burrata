@@ -58,14 +58,14 @@ impl Db {
 
     pub fn delete_cron(&self, id: i64) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM crons WHERE id = ?1", [id])?;
+        conn.execute("DELETE FROM crons WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn update_cron(&self, id: i64, new_value: &str, is_enabled: bool) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "UPDATE crons SET value = ?1, is_enabled = ?2, WHERE id = ?3",
+            "UPDATE crons SET value = ?1, is_enabled = ?2 WHERE id = ?3",
             params![new_value, is_enabled, id],
         )?;
         Ok(())
