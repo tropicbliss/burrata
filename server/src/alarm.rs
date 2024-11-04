@@ -1,21 +1,91 @@
 use crate::{
-    cron,
-    db::{CronEntry, Db},
-    AlarmEntry,
+    db::{Db, DbEntry},
+    scheduler::{Scheduler, SchedulerEntry},
 };
 use anyhow::Result;
-use chrono::Local;
+use jiff::civil::Weekday;
 use rodio::{Decoder, OutputStream, Sink, Source};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     collections::HashSet,
     io::Cursor,
     sync::mpsc::{self, Sender},
     time::Duration,
 };
-use tokio_cron::{Job, Scheduler};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct AlarmId(pub i64);
+
+impl From<AlarmId> for i64 {
+    fn from(value: AlarmId) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SerdeWeekday(Weekday);
+
+impl Serialize for SerdeWeekday {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_i8(self.0.to_sunday_zero_offset())
+    }
+}
+
+impl<'de> Deserialize<'de> for SerdeWeekday {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SerdeWeekdayVisitor;
+
+        impl<'de> Visitor<'de> for SerdeWeekdayVisitor {
+            type Value = SerdeWeekday;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an integer between 0 and 6")
+            }
+
+            fn visit_i8<E>(self, v: i8) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(SerdeWeekday(
+                    Weekday::from_sunday_zero_offset(v)
+                        .map_err(|_| E::custom("an integer between 0 and 6"))?,
+                ))
+            }
+        }
+
+        deserializer.deserialize_i8(SerdeWeekdayVisitor)
+    }
+}
+
+impl From<SerdeWeekday> for Weekday {
+    fn from(value: SerdeWeekday) -> Self {
+        value.0
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AlarmEntry {
+    pub hours: u8,
+    pub minutes: u8,
+    pub days: HashSet<SerdeWeekday>,
+    pub is_enabled: bool,
+}
+
+impl From<AlarmEntry> for SchedulerEntry {
+    fn from(value: AlarmEntry) -> Self {
+        SchedulerEntry {
+            days: value.days.into_iter().map(|entry| entry.into()).collect(),
+            hours: value.hours,
+            minutes: value.minutes,
+        }
+    }
+}
 
 enum AlarmMessage {
     Start,
@@ -24,22 +94,24 @@ enum AlarmMessage {
 
 #[derive(Clone)]
 pub struct Alarm {
-    db: Db,
-    scheduler: Scheduler<Local>,
+    db: Db<AlarmEntry>,
+    scheduler: Scheduler,
     tx: Sender<AlarmMessage>,
 }
 
 impl Alarm {
     pub fn initialise() -> Result<Self> {
-        let mut scheduler = Scheduler::local();
-        let db: Db = Db::initialise()?;
-        let initial: Vec<CronEntry> = db.get_all_crons()?;
+        let scheduler = Scheduler::new();
+        let db: Db<AlarmEntry> = Db::initialise("alarms.db")?;
+        let initial = db.get_all()?;
         let (tx, rx) = mpsc::channel();
-        for cron in initial {
+        for alarm_entry in initial {
             let tx = tx.clone();
-            scheduler.add(Job::named(&cron.id.to_string(), cron.value, move || {
-                alarm_job(tx.clone())
-            }));
+            scheduler.add_schedule(
+                AlarmId(alarm_entry.id),
+                alarm_entry.value.into(),
+                move || alarm_job(tx.clone()),
+            )?;
         }
         std::thread::spawn(move || {
             let alarm = include_bytes!("../sounds/Alarm_Classic.wav");
@@ -65,61 +137,34 @@ impl Alarm {
         Ok(Self { db, scheduler, tx })
     }
 
-    pub fn get_all_crons(&self) -> Result<Vec<AlarmEntry>> {
-        Ok(self
-            .db
-            .get_all_crons()?
-            .into_iter()
-            .map(|entry| AlarmEntry {
-                alarm: cron::parse_cron(&entry.value),
-                id: entry.id,
-                is_enabled: entry.is_enabled,
-            })
-            .collect())
+    pub fn get_all_alarms(&self) -> Result<Vec<DbEntry<AlarmEntry>>> {
+        Ok(self.db.get_all()?)
     }
 
-    pub fn add_alarm(
-        &mut self,
-        is_enabled: bool,
-        hours: u8,
-        minutes: u8,
-        days: HashSet<u8>,
-    ) -> Result<AlarmId> {
-        let cron = cron::create_cron(hours, minutes, days.into_iter().collect())?;
-        let id = self.db.insert_cron(&cron, is_enabled)?;
-        if is_enabled {
+    pub fn add_alarm(&mut self, entry: AlarmEntry) -> Result<AlarmId> {
+        let id = AlarmId(self.db.insert(&entry)?);
+        if entry.is_enabled {
             let tx = self.tx.clone();
             self.scheduler
-                .add(Job::named(&id.to_string(), cron, move || {
-                    alarm_job(tx.clone())
-                }));
+                .add_schedule(id, entry.into(), move || alarm_job(tx.clone()))?;
         }
-        Ok(AlarmId(id))
+        Ok(id)
     }
 
     pub fn remove_alarm(&mut self, id: AlarmId) -> Result<()> {
-        self.db.delete_cron(id.0)?;
-        self.scheduler.cancel_by_name(&id.0.to_string());
+        self.db.delete(id.into())?;
+        self.scheduler.cancel_schedule(id);
         Ok(())
     }
 
-    pub fn update_alarm(
-        &mut self,
-        id: AlarmId,
-        is_enabled: bool,
-        new_hours: u8,
-        new_minutes: u8,
-        new_days: HashSet<u8>,
-    ) -> Result<()> {
-        let cron = cron::create_cron(new_hours, new_minutes, new_days.into_iter().collect())?;
-        self.db.update_cron(id.0, &cron, is_enabled)?;
-        self.scheduler.cancel_by_name(&id.0.to_string());
-        if is_enabled {
+    pub fn update_alarm(&mut self, new_entry: DbEntry<AlarmEntry>) -> Result<()> {
+        self.db.update(new_entry.clone())?;
+        let id = AlarmId(new_entry.id);
+        self.scheduler.cancel_schedule(id);
+        if new_entry.value.is_enabled {
             let tx = self.tx.clone();
             self.scheduler
-                .add(Job::named(&id.0.to_string(), cron, move || {
-                    alarm_job(tx.clone())
-                }));
+                .add_schedule(id, new_entry.value.into(), move || alarm_job(tx.clone()))?;
         }
         Ok(())
     }
@@ -129,6 +174,6 @@ impl Alarm {
     }
 }
 
-async fn alarm_job(tx: Sender<AlarmMessage>) {
+fn alarm_job(tx: Sender<AlarmMessage>) {
     tx.send(AlarmMessage::Start).unwrap();
 }

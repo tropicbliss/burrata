@@ -17,8 +17,4 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  build: {
-    outDir: "../server/target/release/dist",
-    emptyOutDir: true,
-  },
 });
