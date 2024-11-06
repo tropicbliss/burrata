@@ -2,17 +2,14 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { columns } from "./columns"
 import { useEffect, useState } from "react"
 import { DataTable } from "./data-table"
-import { z } from "zod"
 
-const schema = z.object({
-  id: z.number(),
-  hours: z.number().min(0).max(23),
-  minutes: z.number().min(0).max(59),
-  days: z.array(z.number().min(0).max(6)),
-  isEnabled: z.boolean()
-})
-
-export type Alarm = z.infer<typeof schema>
+export type Alarm = {
+  id: number;
+  hours: number;
+  minutes: number;
+  days: number[];
+  isEnabled: boolean;
+}
 
 async function getData(): Promise<Alarm[]> {
   // Fetch data from your API here.
