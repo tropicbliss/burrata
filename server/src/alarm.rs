@@ -30,7 +30,7 @@ impl Serialize for SerdeWeekday {
     where
         S: Serializer,
     {
-        serializer.serialize_i8(self.0.to_sunday_zero_offset())
+        serializer.serialize_i8(self.0.to_monday_one_offset())
     }
 }
 
@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for SerdeWeekday {
                 E: serde::de::Error,
             {
                 Ok(SerdeWeekday(
-                    Weekday::from_sunday_zero_offset(v)
+                    Weekday::from_monday_one_offset(v)
                         .map_err(|_| E::custom("an integer between 0 and 6"))?,
                 ))
             }
@@ -70,10 +70,12 @@ impl From<SerdeWeekday> for Weekday {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct AlarmEntry {
     pub hours: u8,
     pub minutes: u8,
     pub days: HashSet<SerdeWeekday>,
+
     pub is_enabled: bool,
 }
 
