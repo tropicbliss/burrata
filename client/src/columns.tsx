@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Switch } from "@/components/ui/switch"
+import { useState } from "react"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -76,8 +77,9 @@ export const columns: ColumnDef<Alarm>[] = [
         id: "actions",
         cell: ({ row }) => {
             const original = row.original
-            const { hours, minutes, days, isEnabled } = original
-            const formattedTime = formatTime2(hours, minutes)
+            const [time, setTime] = useState(formatTime2(original.hours, original.minutes))
+            const [days, setDays] = useState(original.days)
+            const [isEnabled, setEnabled] = useState(original.isEnabled)
 
             return (
                 <div className="text-right">
@@ -97,13 +99,13 @@ export const columns: ColumnDef<Alarm>[] = [
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <div className="grid w-full max-w-sm items-center gap-1.5">
                                             <Label htmlFor="time">Time</Label>
-                                            <Input type="time" id="time" value={formattedTime} />
+                                            <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <div className="grid w-full max-w-sm items-center gap-1.5">
                                             <Label>Days</Label>
-                                            <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())}>
+                                            <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
                                                 <ToggleGroupItem value="1">M</ToggleGroupItem>
                                                 <ToggleGroupItem value="2">T</ToggleGroupItem>
                                                 <ToggleGroupItem value="3">W</ToggleGroupItem>
@@ -116,11 +118,11 @@ export const columns: ColumnDef<Alarm>[] = [
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit">Save changes</Button>
+                                    <Button>Save changes</Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
-                        <Switch checked={isEnabled} aria-label="Toggle alarm" />
+                        <Switch checked={isEnabled} onCheckedChange={setEnabled} aria-label="Toggle alarm" />
                     </div>
                 </div>
             )

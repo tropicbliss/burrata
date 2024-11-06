@@ -75,7 +75,6 @@ pub struct AlarmEntry {
     pub hours: u8,
     pub minutes: u8,
     pub days: HashSet<SerdeWeekday>,
-
     pub is_enabled: bool,
 }
 
