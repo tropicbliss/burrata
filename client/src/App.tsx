@@ -5,6 +5,7 @@ import { DataTable } from "./data-table"
 import { z } from "zod"
 
 const schema = z.object({
+  id: z.number(),
   hours: z.number().min(0).max(23),
   minutes: z.number().min(0).max(59),
   days: z.array(z.number().min(0).max(6)),
@@ -17,18 +18,21 @@ async function getData(): Promise<Alarm[]> {
   // Fetch data from your API here.
   return [
     {
+      id: 1,
       hours: 7,
       minutes: 0,
       days: [1, 4],
       isEnabled: true
     },
     {
+      id: 2,
       hours: 8,
       minutes: 30,
       days: [1, 2, 3, 4, 5],
       isEnabled: false
     },
     {
+      id: 3,
       hours: 9,
       minutes: 0,
       days: [6, 7],
