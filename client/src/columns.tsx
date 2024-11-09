@@ -1,20 +1,41 @@
 import { ColumnDef } from "@tanstack/react-table"
-import { Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Alarm } from "./App"
+import { Alarm, queryKey } from "./App"
 import {
     Dialog,
+    DialogClose,
     DialogContent,
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Switch } from "@/components/ui/switch"
 import { useState } from "react"
+import { MoreHorizontal } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { queryClient } from "./main"
+import { parseTime, formatTime2 } from "./lib/time-utils"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -22,12 +43,6 @@ function formatTime(hours: number, minutes: number) {
     hours = hours === 0 ? 12 : hours;
     const paddedMinutes = minutes.toString().padStart(2, '0');
     return `${hours}:${paddedMinutes} ${period}`;
-}
-
-function formatTime2(hours: number, minutes: number) {
-    const paddedHours = hours.toString().padStart(2, '0')
-    const paddedMinutes = minutes.toString().padStart(2, '0');
-    return `${paddedHours}:${paddedMinutes}`;
 }
 
 function formatDays(days: number[]) {
@@ -79,50 +94,162 @@ export const columns: ColumnDef<Alarm>[] = [
             const original = row.original
             const [time, setTime] = useState(formatTime2(original.hours, original.minutes))
             const [days, setDays] = useState(original.days)
-            const [isEnabled, setEnabled] = useState(original.isEnabled)
+            const [isUpdateDialogOpen, setUpdateDialogOpen] = useState(false)
+            const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+            const deleteAlarm = useMutation({
+                mutationFn: async (id: number) => {
+                    const previousAlarms = queryClient.getQueryData(queryKey)
+                    queryClient.setQueryData(queryKey, (old: Alarm[]) => old.filter((alarm) => alarm.id !== id))
+                    const response = await fetch("/api/alarm", {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ id })
+                    })
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => null)
+                        if (errorData.error) {
+                            throw new Error(errorData.error)
+                        }
+                    }
+                    { previousAlarms }
+                },
+                onSuccess: () => {
+                    toast.success("Alarm deleted successfully")
+                },
+                onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
+                    toast.error("Failed to delete alarm", {
+                        description: err.message
+                    })
+                    if (context) {
+                        queryClient.setQueryData(queryKey, context.previousAlarms)
+                    }
+                }
+            })
+
+            const updateAlarm = useMutation({
+                mutationFn: async (data: Alarm) => {
+                    const previousAlarms = queryClient.getQueryData(queryKey)
+                    queryClient.setQueryData(queryKey, (old: Alarm[]) => old.map((alarm) => {
+                        if (alarm.id === data.id) {
+                            return data
+                        } else {
+                            return alarm
+                        }
+                    }))
+                    const response = await fetch("/api/alarm", {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => null)
+                        if (errorData.error) {
+                            throw new Error(errorData.error)
+                        }
+                    }
+                    { previousAlarms }
+                },
+                onSuccess: () => {
+                    toast.success("Alarm updated successfully")
+                },
+                onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
+                    toast.error("Failed to update alarm", {
+                        description: err.message
+                    })
+                    if (context) {
+                        queryClient.setQueryData(queryKey, context.previousAlarms)
+                    }
+                }
+            })
 
             return (
                 <div className="text-right">
-                    <div className="space-x-3">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open dialog</span>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                    <DialogTitle>Edit alarm</DialogTitle>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                                            <Label htmlFor="time">Time</Label>
-                                            <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                                            <Label>Days</Label>
-                                            <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
-                                                <ToggleGroupItem value="1">M</ToggleGroupItem>
-                                                <ToggleGroupItem value="2">T</ToggleGroupItem>
-                                                <ToggleGroupItem value="3">W</ToggleGroupItem>
-                                                <ToggleGroupItem value="4">T</ToggleGroupItem>
-                                                <ToggleGroupItem value="5">F</ToggleGroupItem>
-                                                <ToggleGroupItem value="6">S</ToggleGroupItem>
-                                                <ToggleGroupItem value="7">S</ToggleGroupItem>
-                                            </ToggleGroup>
-                                        </div>
+                    <Dialog open={isUpdateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Edit alarm</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                                        <Label htmlFor="time">Time</Label>
+                                        <Input type="time" id="time" defaultValue={time} onChange={(e) => setTime(e.target.value)} />
                                     </div>
                                 </div>
-                                <DialogFooter>
-                                    <Button>Save changes</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        <Switch checked={isEnabled} onCheckedChange={setEnabled} aria-label="Toggle alarm" />
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                                        <Label>Days</Label>
+                                        <ToggleGroup type="multiple" variant="outline" defaultValue={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
+                                            <ToggleGroupItem value="1">M</ToggleGroupItem>
+                                            <ToggleGroupItem value="2">T</ToggleGroupItem>
+                                            <ToggleGroupItem value="3">W</ToggleGroupItem>
+                                            <ToggleGroupItem value="4">T</ToggleGroupItem>
+                                            <ToggleGroupItem value="5">F</ToggleGroupItem>
+                                            <ToggleGroupItem value="6">S</ToggleGroupItem>
+                                            <ToggleGroupItem value="7">S</ToggleGroupItem>
+                                        </ToggleGroup>
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button onClick={() => {
+                                        const { hours, minutes } = parseTime(time)
+                                        updateAlarm.mutate({
+                                            days,
+                                            hours,
+                                            id: original.id,
+                                            minutes,
+                                            isEnabled: original.isEnabled
+                                        })
+                                    }}>Save changes</Button>
+                                </DialogClose>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will permanently delete your alarm and cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteAlarm.mutate(original.id)}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <div className="space-x-3">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => setUpdateDialogOpen(true)}>Update alarm</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>Delete alarm</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Switch checked={original.isEnabled} onCheckedChange={(isChecked) => {
+                            const { hours, minutes } = parseTime(time)
+                            updateAlarm.mutate({
+                                days,
+                                hours,
+                                id: original.id,
+                                isEnabled: isChecked,
+                                minutes
+                            })
+                        }} aria-label="Toggle alarm" />
                     </div>
                 </div>
             )
