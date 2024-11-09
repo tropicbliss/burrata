@@ -35,7 +35,7 @@ import {
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { queryClient } from "./main"
-import { parseTime, formatTime2 } from "@/lib/utils"
+import { parseTime, formatTime2, errorHandlingFetch } from "@/lib/utils"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -101,19 +101,13 @@ export const columns: ColumnDef<Alarm>[] = [
                 mutationFn: async (id: number) => {
                     const previousAlarms = queryClient.getQueryData(queryKey)
                     queryClient.setQueryData(queryKey, (old: Alarm[]) => old.filter((alarm) => alarm.id !== id))
-                    const response = await fetch("/api/alarm", {
+                    await errorHandlingFetch<void>(false, "/api/alarm", {
                         method: "DELETE",
                         headers: {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({ id })
                     })
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => null)
-                        if (errorData.error) {
-                            throw new Error(errorData.error)
-                        }
-                    }
                     { previousAlarms }
                 },
                 onSuccess: () => {
@@ -139,19 +133,13 @@ export const columns: ColumnDef<Alarm>[] = [
                             return alarm
                         }
                     }))
-                    const response = await fetch("/api/alarm", {
+                    await errorHandlingFetch<void>(false, "/api/alarm", {
                         method: "PUT",
                         headers: {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify(data)
                     })
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => null)
-                        if (errorData.error) {
-                            throw new Error(errorData.error)
-                        }
-                    }
                     { previousAlarms }
                 },
                 onSuccess: () => {

@@ -20,7 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useState } from "react"
 import { toast } from "sonner"
 import { queryClient } from "./main"
-import { formatTime2, parseTime } from "@/lib/utils"
+import { errorHandlingFetch, formatTime2, parseTime } from "@/lib/utils"
 
 export type Alarm = {
   id: number;
@@ -73,23 +73,14 @@ function App() {
 
   const addAlarm = useMutation({
     mutationFn: async (data: AlarmWithoutId) => {
-      const response = await fetch("/api/alarm", {
+      const response = await errorHandlingFetch<{ id: number }>(true, "/api/alarm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(data)
       })
-      const json = await response.json().catch(() => null)
-      if (!response.ok) {
-        if (json.error) {
-          throw new Error(json.error)
-        }
-      }
-      if (json === null) {
-        throw new Error()
-      }
-      return { ...data, id: json.id as number }
+      return { ...data, id: response.id }
     },
     onSuccess: (newAlarm: Alarm) => {
       queryClient.setQueryData(queryKey, (oldAlarms: Alarm[]) => [...oldAlarms, newAlarm])
@@ -104,9 +95,19 @@ function App() {
 
   const [isAddAlarmOpen, setAddAlarmOpen] = useState(false)
 
-  async function cancelAlarm() {
-    await fetch("/api/stop")
-  }
+  const stopAlarm = useMutation({
+    mutationFn: async () => {
+      errorHandlingFetch<void>(false, "/api/stop")
+    },
+    onSuccess: () => {
+      toast.success("Successfully stopped alarm")
+    },
+    onError: (err) => {
+      toast.error("Failed to stop alarm", {
+        description: err.message
+      })
+    }
+  })
 
   return (
     <div className="space-y-4">
@@ -167,7 +168,7 @@ function App() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="icon" onClick={cancelAlarm}>
+            <Button variant="outline" size="icon" onClick={() => stopAlarm.mutate()}>
               <AlarmClockOff />
             </Button>
             <ModeToggle />

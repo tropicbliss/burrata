@@ -18,3 +18,22 @@ export function formatTime2(hours: number, minutes: number) {
   const paddedMinutes = minutes.toString().padStart(2, "0");
   return `${paddedHours}:${paddedMinutes}`;
 }
+
+export async function errorHandlingFetch<T>(
+  expectingOutput: T extends void ? false : true,
+  input: string | URL | globalThis.Request,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(input, init);
+  const json = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    throw new Error(`HTTP error: ${response.statusText}`);
+  }
+  if (expectingOutput && json === null) {
+    throw new Error("Did not get response");
+  }
+  return json;
+}
