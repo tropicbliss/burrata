@@ -3,7 +3,7 @@ import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlarmClockOff, AlarmClockPlus, AlertCircle } from "lucide-react"
+import { AlarmClockOff, AlarmClockPlus, AlertCircle, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -102,6 +102,8 @@ function App() {
     }
   })
 
+  const [isAddAlarmOpen, setAddAlarmOpen] = useState(false)
+
   async function cancelAlarm() {
     await fetch("/api/stop")
   }
@@ -112,11 +114,12 @@ function App() {
         <div className="flex h-16 justify-between items-center px-4">
           <div className="scroll-m-20 text-2xl font-semibold tracking-tight select-none">Alarm</div>
           <div className="space-x-3">
-            <Dialog onOpenChange={(open) => {
+            <Dialog open={isAddAlarmOpen} onOpenChange={(open) => {
               if (open) {
                 setTime(formatTime2(getNextHour(), 0))
                 setDays([])
               }
+              setAddAlarmOpen(open)
             }}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -181,7 +184,17 @@ function App() {
             </AlertDescription>
           </Alert>
         )}
-        {data && <DataTable columns={columns} data={data} />}
+        {data && <>
+          {data.length === 0 ? (
+            <Alert>
+              <SearchX className="h-4 w-4" />
+              <AlertTitle>No alarms found!</AlertTitle>
+              <AlertDescription className="underline cursor-pointer" onClick={() => setAddAlarmOpen(true)}>
+                Add your first alarm.
+              </AlertDescription>
+            </Alert>
+          ) : <DataTable columns={columns} data={data} />}
+        </>}
       </div>
     </div>
   )
