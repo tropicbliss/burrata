@@ -35,7 +35,7 @@ import {
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { queryClient } from "./main"
-import { parseTime, formatTime2 } from "./lib/time-utils"
+import { parseTime, formatTime2 } from "@/lib/utils"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -92,8 +92,8 @@ export const columns: ColumnDef<Alarm>[] = [
         id: "actions",
         cell: ({ row }) => {
             const original = row.original
-            const [time, setTime] = useState(formatTime2(original.hours, original.minutes))
-            const [days, setDays] = useState(original.days)
+            const [time, setTime] = useState("")
+            const [days, setDays] = useState<number[]>([])
             const [isUpdateDialogOpen, setUpdateDialogOpen] = useState(false)
             const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -169,7 +169,13 @@ export const columns: ColumnDef<Alarm>[] = [
 
             return (
                 <div className="text-right">
-                    <Dialog open={isUpdateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+                    <Dialog open={isUpdateDialogOpen} onOpenChange={(open) => {
+                        if (open) {
+                            setTime(formatTime2(original.hours, original.minutes))
+                            setDays(original.days)
+                        }
+                        setUpdateDialogOpen(open)
+                    }}>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
                                 <DialogTitle>Edit alarm</DialogTitle>
@@ -178,13 +184,13 @@ export const columns: ColumnDef<Alarm>[] = [
                                 <div className="grid grid-cols-4 items-center gap-4">
                                     <div className="grid w-full max-w-sm items-center gap-1.5">
                                         <Label htmlFor="time">Time</Label>
-                                        <Input type="time" id="time" defaultValue={time} onChange={(e) => setTime(e.target.value)} />
+                                        <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-4 items-center gap-4">
                                     <div className="grid w-full max-w-sm items-center gap-1.5">
                                         <Label>Days</Label>
-                                        <ToggleGroup type="multiple" variant="outline" defaultValue={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
+                                        <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
                                             <ToggleGroupItem value="1">M</ToggleGroupItem>
                                             <ToggleGroupItem value="2">T</ToggleGroupItem>
                                             <ToggleGroupItem value="3">W</ToggleGroupItem>
