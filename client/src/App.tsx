@@ -78,7 +78,7 @@ function App() {
     staleTime: Infinity,
   })
 
-  const [time, setTime] = useState(formatTime2(getNextHour(), 0))
+  const [time, setTime] = useState("")
   const [days, setDays] = useState<number[]>([])
 
   const addAlarm = useMutation({
@@ -118,7 +118,12 @@ function App() {
         <div className="flex h-16 justify-between items-center px-4">
           <div className="scroll-m-20 text-2xl font-semibold tracking-tight select-none">Alarm</div>
           <div className="space-x-3">
-            <Dialog>
+            <Dialog onOpenChange={(open) => {
+              if (open) {
+                setTime(formatTime2(getNextHour(), 0))
+                setDays([])
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="icon">
                   <AlarmClockPlus />
@@ -132,13 +137,13 @@ function App() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <div className="grid w-full max-w-sm items-center gap-1.5">
                       <Label htmlFor="time">Time</Label>
-                      <Input type="time" id="time" defaultValue={time} onChange={(e) => setTime(e.target.value)} />
+                      <Input type="time" id="time" value={time} onChange={(e) => setTime(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <div className="grid w-full max-w-sm items-center gap-1.5">
                       <Label>Days</Label>
-                      <ToggleGroup type="multiple" variant="outline" defaultValue={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
+                      <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
                         <ToggleGroupItem value="1">M</ToggleGroupItem>
                         <ToggleGroupItem value="2">T</ToggleGroupItem>
                         <ToggleGroupItem value="3">W</ToggleGroupItem>
