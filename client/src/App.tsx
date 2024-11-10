@@ -155,7 +155,7 @@ function App() {
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button onClick={() => {
+                    <Button onMouseDown={() => {
                       const { hours, minutes } = parseTime(time)
                       addAlarm.mutate({
                         days,
@@ -168,7 +168,7 @@ function App() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" size="icon" onClick={() => stopAlarm.mutate()}>
+            <Button variant="outline" size="icon" onMouseDown={() => stopAlarm.mutate()}>
               <AlarmClockOff />
             </Button>
             <ModeToggle />
@@ -190,7 +190,7 @@ function App() {
             <Alert>
               <SearchX className="h-4 w-4" />
               <AlertTitle>No alarms found!</AlertTitle>
-              <AlertDescription className="underline cursor-pointer" onClick={() => setAddAlarmOpen(true)}>
+              <AlertDescription className="underline cursor-pointer" onMouseDown={() => setAddAlarmOpen(true)}>
                 Add your first alarm.
               </AlertDescription>
             </Alert>

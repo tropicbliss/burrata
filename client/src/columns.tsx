@@ -192,7 +192,7 @@ export const columns: ColumnDef<Alarm>[] = [
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button onClick={() => {
+                                    <Button onMouseDown={() => {
                                         const { hours, minutes } = parseTime(time)
                                         updateAlarm.mutate({
                                             days,
@@ -216,7 +216,7 @@ export const columns: ColumnDef<Alarm>[] = [
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteAlarm.mutate(original.id)}>Continue</AlertDialogAction>
+                                <AlertDialogAction onMouseDown={() => deleteAlarm.mutate(original.id)}>Continue</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -230,8 +230,8 @@ export const columns: ColumnDef<Alarm>[] = [
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => setUpdateDialogOpen(true)}>Update alarm</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>Delete alarm</DropdownMenuItem>
+                                <DropdownMenuItem onMouseDown={() => setUpdateDialogOpen(true)}>Update alarm</DropdownMenuItem>
+                                <DropdownMenuItem onMouseDown={() => setDeleteDialogOpen(true)}>Delete alarm</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Switch checked={original.isEnabled} onCheckedChange={(isChecked) => {
