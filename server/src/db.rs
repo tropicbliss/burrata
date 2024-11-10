@@ -72,7 +72,7 @@ where
 {
     pub fn get_all(&self) -> Result<Vec<DbEntry<T>>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, value FROM documents")?;
+        let mut stmt = conn.prepare("SELECT id, value FROM documents ORDER BY id")?;
         let data: Result<Vec<DbEntryInner>, _> = stmt
             .query_map([], |row| {
                 Ok(DbEntryInner {
