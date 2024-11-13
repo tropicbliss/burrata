@@ -1,13 +1,12 @@
 import { ModeToggle } from "@/components/mode-toggle"
 import { columns } from "./columns"
 import { DataTable } from "./data-table"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlarmClockOff, AlarmClockPlus, AlertCircle, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -17,10 +16,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { queryClient } from "./main"
-import { errorHandlingFetch, formatTime2, parseTime } from "@/lib/utils"
+import { errorHandlingFetch, formatToMilitaryTime, parseTime } from "@/lib/utils"
 
 export type Alarm = {
   id: number;
@@ -58,6 +56,7 @@ function getNextHour() {
 }
 
 function App() {
+  const queryClient = useQueryClient()
   const { data, error } = useQuery({
     queryKey,
     queryFn: getData,
@@ -70,6 +69,8 @@ function App() {
 
   const [time, setTime] = useState("")
   const [days, setDays] = useState<number[]>([])
+
+  const [isAddAlarmOpen, setAddAlarmOpen] = useState(false)
 
   const addAlarm = useMutation({
     mutationFn: async (data: AlarmWithoutId) => {
@@ -85,6 +86,7 @@ function App() {
     onSuccess: (newAlarm: Alarm) => {
       queryClient.setQueryData(queryKey, (oldAlarms: Alarm[]) => [...oldAlarms, newAlarm])
       toast.success("Alarm added successfully")
+      setAddAlarmOpen(false)
     },
     onError: (err) => {
       toast.error("Failed to add alarm", {
@@ -92,8 +94,6 @@ function App() {
       })
     }
   })
-
-  const [isAddAlarmOpen, setAddAlarmOpen] = useState(false)
 
   const stopAlarm = useMutation({
     mutationFn: async () => {
@@ -109,19 +109,20 @@ function App() {
     }
   })
 
+  useEffect(() => {
+    if (isAddAlarmOpen) {
+      setTime(formatToMilitaryTime(getNextHour(), 0))
+      setDays([])
+    }
+  }, [isAddAlarmOpen])
+
   return (
     <div className="space-y-4">
       <div className="border-b">
         <div className="flex h-16 justify-between items-center px-4">
           <div className="scroll-m-20 text-2xl font-semibold tracking-tight select-none">Alarm</div>
           <div className="space-x-3">
-            <Dialog open={isAddAlarmOpen} onOpenChange={(open) => {
-              if (open) {
-                setTime(formatTime2(getNextHour(), 0))
-                setDays([])
-              }
-              setAddAlarmOpen(open)
-            }}>
+            <Dialog open={isAddAlarmOpen} onOpenChange={setAddAlarmOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="icon">
                   <AlarmClockPlus />
@@ -154,17 +155,15 @@ function App() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button onMouseDown={() => {
-                      const { hours, minutes } = parseTime(time)
-                      addAlarm.mutate({
-                        days,
-                        hours,
-                        isEnabled: true,
-                        minutes
-                      })
-                    }}>Save changes</Button>
-                  </DialogClose>
+                  <Button onMouseDown={() => {
+                    const { hours, minutes } = parseTime(time)
+                    addAlarm.mutate({
+                      days,
+                      hours,
+                      isEnabled: true,
+                      minutes
+                    })
+                  }}>Save changes</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

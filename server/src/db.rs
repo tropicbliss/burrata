@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bincode::ErrorKind;
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -17,19 +16,19 @@ pub struct DbEntry<T> {
 
 pub struct DbEntryInner {
     pub id: i64,
-    pub value: Vec<u8>,
+    pub value: String,
 }
 
 impl<T> TryFrom<DbEntryInner> for DbEntry<T>
 where
     T: DeserializeOwned,
 {
-    type Error = Box<ErrorKind>;
+    type Error = serde_json::Error;
 
     fn try_from(value: DbEntryInner) -> std::result::Result<Self, Self::Error> {
         Ok(DbEntry {
             id: value.id,
-            value: bincode::deserialize(&value.value)?,
+            value: serde_json::from_str(&value.value)?,
         })
     }
 }
@@ -49,7 +48,7 @@ impl<T> Db<T> {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY,
-            value BLOB NOT NULL
+            value TEXT NOT NULL
         )",
             [],
         )?;
@@ -86,6 +85,13 @@ where
             .map(|raw_entry| raw_entry.try_into())
             .collect::<Result<_, _>>()?)
     }
+
+    pub fn get(&self, id: i64) -> Result<T> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT value FROM documents WHERE id = ?")?;
+        let entry: String = stmt.query_row([id], |row| Ok(row.get(0)?))?;
+        Ok(serde_json::from_str(&entry)?)
+    }
 }
 
 impl<T> Db<T>
@@ -94,17 +100,17 @@ where
 {
     pub fn insert(&self, value: &T) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
-        let binary = bincode::serialize(value)?;
-        conn.execute("INSERT INTO documents (value) VALUES (?1)", [binary])?;
+        let json = serde_json::to_string(value)?;
+        conn.execute("INSERT INTO documents (value) VALUES (?1)", [json])?;
         Ok(conn.last_insert_rowid())
     }
 
     pub fn update(&self, new_entry: DbEntry<T>) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        let binary = bincode::serialize(&new_entry.value)?;
+        let json = serde_json::to_string(&new_entry.value)?;
         conn.execute(
             "UPDATE documents SET value = ?1 WHERE id = ?2",
-            params![binary, new_entry.id],
+            params![json, new_entry.id],
         )?;
         Ok(())
     }

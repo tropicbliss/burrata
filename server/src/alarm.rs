@@ -13,7 +13,7 @@ use std::{
     time::Duration,
 };
 
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, Debug)]
 pub struct AlarmId(pub i64);
 
 impl From<AlarmId> for i64 {
@@ -45,21 +45,21 @@ impl<'de> Deserialize<'de> for SerdeWeekday {
             type Value = SerdeWeekday;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("an integer between 0 and 6")
+                formatter.write_str("an integer")
             }
 
-            fn visit_i8<E>(self, v: i8) -> std::result::Result<Self::Value, E>
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
                 Ok(SerdeWeekday(
-                    Weekday::from_monday_one_offset(v)
-                        .map_err(|_| E::custom("an integer between 0 and 6"))?,
+                    Weekday::from_monday_one_offset(v as i8)
+                        .map_err(|_| E::custom("an integer between 1 and 7"))?,
                 ))
             }
         }
 
-        deserializer.deserialize_i8(SerdeWeekdayVisitor)
+        deserializer.deserialize_u64(SerdeWeekdayVisitor)
     }
 }
 
@@ -102,8 +102,19 @@ pub struct Alarm {
 
 impl Alarm {
     pub fn initialise() -> Result<Self> {
-        let scheduler = Scheduler::new();
+        let mut scheduler = Scheduler::new();
         let db: Db<AlarmEntry> = Db::initialise("alarms.db")?;
+        let db_clone = db.clone();
+        scheduler.add_loop_done_callback(move |id| {
+            let db = &db_clone;
+            let mut entry = db.get(id.0).unwrap();
+            entry.is_enabled = false;
+            db.update(DbEntry {
+                id: id.0,
+                value: entry,
+            })
+            .unwrap();
+        });
         let initial = db.get_all()?;
         let (tx, rx) = mpsc::channel();
         for alarm_entry in initial {

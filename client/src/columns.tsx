@@ -32,10 +32,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { queryClient } from "./main"
-import { parseTime, formatTime2, errorHandlingFetch } from "@/lib/utils"
+import { parseTime, formatToMilitaryTime, errorHandlingFetch } from "@/lib/utils"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -67,6 +66,16 @@ function formatDays(days: number[]) {
     }).join(", ")
 }
 
+function formatOneTimeAlarm(hours: number, minutes: number) {
+    const currentMilitaryTime = new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+    const alarmMilitaryTime = formatToMilitaryTime(hours, minutes)
+    return alarmMilitaryTime > currentMilitaryTime ? "Today" : "Tomorrow"
+}
+
 export const columns: ColumnDef<Alarm>[] = [
     {
         accessorKey: "time",
@@ -83,7 +92,7 @@ export const columns: ColumnDef<Alarm>[] = [
         header: "Day(s)",
         cell: ({ row }) => {
             const { original } = row
-            const formatted = formatDays(original.days)
+            const formatted = original.days.length === 0 ? formatOneTimeAlarm(original.hours, original.minutes) : formatDays(original.days)
 
             return <div>{formatted}</div>
         },
@@ -96,6 +105,8 @@ export const columns: ColumnDef<Alarm>[] = [
             const [days, setDays] = useState<number[]>([])
             const [isUpdateDialogOpen, setUpdateDialogOpen] = useState(false)
             const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+            const queryClient = useQueryClient()
 
             const deleteAlarm = useMutation({
                 mutationFn: async (id: number) => {
@@ -157,13 +168,7 @@ export const columns: ColumnDef<Alarm>[] = [
 
             return (
                 <div className="text-right">
-                    <Dialog open={isUpdateDialogOpen} onOpenChange={(open) => {
-                        if (open) {
-                            setTime(formatTime2(original.hours, original.minutes))
-                            setDays(original.days)
-                        }
-                        setUpdateDialogOpen(open)
-                    }}>
+                    <Dialog open={isUpdateDialogOpen} onOpenChange={setUpdateDialogOpen} >
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
                                 <DialogTitle>Edit alarm</DialogTitle>
@@ -230,18 +235,18 @@ export const columns: ColumnDef<Alarm>[] = [
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onMouseDown={() => setUpdateDialogOpen(true)}>Update alarm</DropdownMenuItem>
+                                <DropdownMenuItem onMouseDown={() => {
+                                    setUpdateDialogOpen(true)
+                                    setTime(formatToMilitaryTime(original.hours, original.minutes))
+                                    setDays(original.days)
+                                }}>Update alarm</DropdownMenuItem>
                                 <DropdownMenuItem onMouseDown={() => setDeleteDialogOpen(true)}>Delete alarm</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Switch checked={original.isEnabled} onCheckedChange={(isChecked) => {
-                            const { hours, minutes } = parseTime(time)
                             updateAlarm.mutate({
-                                days,
-                                hours,
-                                id: original.id,
+                                ...original,
                                 isEnabled: isChecked,
-                                minutes
                             })
                         }} aria-label="Toggle alarm" />
                     </div>

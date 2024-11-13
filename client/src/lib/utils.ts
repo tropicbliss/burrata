@@ -13,7 +13,7 @@ export function parseTime(timeStr: string) {
   return { hours, minutes };
 }
 
-export function formatTime2(hours: number, minutes: number) {
+export function formatToMilitaryTime(hours: number, minutes: number) {
   const paddedHours = hours.toString().padStart(2, "0");
   const paddedMinutes = minutes.toString().padStart(2, "0");
   return `${paddedHours}:${paddedMinutes}`;
