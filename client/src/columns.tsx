@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { parseTime, formatToMilitaryTime, errorHandlingFetch } from "@/lib/utils"
+import { parseTime, formatToMilitaryTime, errorHandlingFetch, formatAlarmSetToast } from "@/lib/utils"
 
 function formatTime(hours: number, minutes: number) {
     const period = hours >= 12 ? "pm" : "am";
@@ -119,7 +119,7 @@ export const columns: ColumnDef<Alarm>[] = [
                         },
                         body: JSON.stringify({ id })
                     })
-                    { previousAlarms }
+                    return { previousAlarms }
                 },
                 onSuccess: () => {
                     toast.success("Alarm deleted successfully")
@@ -135,11 +135,15 @@ export const columns: ColumnDef<Alarm>[] = [
             })
 
             const updateAlarm = useMutation({
-                mutationFn: async (data: Alarm) => {
+                mutationFn: async (data: { alarm: Alarm, isDelete: boolean }) => {
+                    let { alarm: updatedAlarm, isDelete } = data
+                    if (!isDelete) {
+                        updatedAlarm.isEnabled = true
+                    }
                     const previousAlarms = queryClient.getQueryData(queryKey)
                     queryClient.setQueryData(queryKey, (old: Alarm[]) => old.map((alarm) => {
-                        if (alarm.id === data.id) {
-                            return data
+                        if (alarm.id === data.alarm.id) {
+                            return updatedAlarm
                         } else {
                             return alarm
                         }
@@ -149,12 +153,16 @@ export const columns: ColumnDef<Alarm>[] = [
                         headers: {
                             "Content-Type": "application/json"
                         },
-                        body: JSON.stringify(data)
+                        body: JSON.stringify(updatedAlarm)
                     })
-                    { previousAlarms }
+                    return { previousAlarms, updatedAlarm }
                 },
-                onSuccess: () => {
-                    toast.success("Alarm updated successfully")
+                onSuccess: (data) => {
+                    if (data.updatedAlarm.isEnabled) {
+                        const { updatedAlarm } = data
+                        const formattedToast = formatAlarmSetToast(updatedAlarm.days, updatedAlarm.hours, updatedAlarm.minutes)
+                        toast.success(formattedToast)
+                    }
                 },
                 onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
                     toast.error("Failed to update alarm", {
@@ -200,11 +208,14 @@ export const columns: ColumnDef<Alarm>[] = [
                                     <Button onMouseDown={() => {
                                         const { hours, minutes } = parseTime(time)
                                         updateAlarm.mutate({
-                                            days,
-                                            hours,
-                                            id: original.id,
-                                            minutes,
-                                            isEnabled: original.isEnabled
+                                            alarm: {
+                                                days,
+                                                hours,
+                                                id: original.id,
+                                                minutes,
+                                                isEnabled: original.isEnabled,
+                                            },
+                                            isDelete: false
                                         })
                                     }}>Save changes</Button>
                                 </DialogClose>
@@ -245,8 +256,11 @@ export const columns: ColumnDef<Alarm>[] = [
                         </DropdownMenu>
                         <Switch checked={original.isEnabled} onCheckedChange={(isChecked) => {
                             updateAlarm.mutate({
-                                ...original,
-                                isEnabled: isChecked,
+                                alarm: {
+                                    ...original,
+                                    isEnabled: isChecked,
+                                },
+                                isDelete: true
                             })
                         }} aria-label="Toggle alarm" />
                     </div>

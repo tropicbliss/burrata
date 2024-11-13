@@ -30,7 +30,7 @@ impl Serialize for SerdeWeekday {
     where
         S: Serializer,
     {
-        serializer.serialize_i8(self.0.to_monday_one_offset())
+        serializer.serialize_i8(self.0.to_sunday_zero_offset())
     }
 }
 
@@ -53,7 +53,7 @@ impl<'de> Deserialize<'de> for SerdeWeekday {
                 E: serde::de::Error,
             {
                 Ok(SerdeWeekday(
-                    Weekday::from_monday_one_offset(v as i8)
+                    Weekday::from_sunday_zero_offset(v as i8)
                         .map_err(|_| E::custom("an integer between 1 and 7"))?,
                 ))
             }

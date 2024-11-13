@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { errorHandlingFetch, formatToMilitaryTime, parseTime } from "@/lib/utils"
+import { errorHandlingFetch, formatAlarmSetToast, formatToMilitaryTime, parseTime } from "@/lib/utils"
 
 export type Alarm = {
   id: number;
@@ -85,8 +85,9 @@ function App() {
     },
     onSuccess: (newAlarm: Alarm) => {
       queryClient.setQueryData(queryKey, (oldAlarms: Alarm[]) => [...oldAlarms, newAlarm])
-      toast.success("Alarm added successfully")
       setAddAlarmOpen(false)
+      const formattedToast = formatAlarmSetToast(newAlarm.days, newAlarm.hours, newAlarm.minutes)
+      toast.success(formattedToast)
     },
     onError: (err) => {
       toast.error("Failed to add alarm", {
