@@ -54,7 +54,7 @@ impl<'de> Deserialize<'de> for SerdeWeekday {
             {
                 Ok(SerdeWeekday(
                     Weekday::from_sunday_zero_offset(v as i8)
-                        .map_err(|_| E::custom("an integer between 1 and 7"))?,
+                        .map_err(|_| E::custom("an integer between 0 and 6"))?,
                 ))
             }
         }
