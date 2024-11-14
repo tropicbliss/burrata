@@ -105,6 +105,7 @@ export const columns: ColumnDef<Alarm>[] = [
             const [days, setDays] = useState<number[]>([])
             const [isUpdateDialogOpen, setUpdateDialogOpen] = useState(false)
             const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+            const [isDropdownMenuOpen, setDropdownMenuOpen] = useState(false)
 
             const queryClient = useQueryClient()
 
@@ -237,7 +238,7 @@ export const columns: ColumnDef<Alarm>[] = [
                         </AlertDialogContent>
                     </AlertDialog>
                     <div className="space-x-3">
-                        <DropdownMenu>
+                        <DropdownMenu open={isDropdownMenuOpen} onOpenChange={setDropdownMenuOpen}>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0">
                                     <span className="sr-only">Open menu</span>
@@ -247,11 +248,15 @@ export const columns: ColumnDef<Alarm>[] = [
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuItem onMouseDown={() => {
+                                    setDropdownMenuOpen(false)
                                     setUpdateDialogOpen(true)
                                     setTime(formatToMilitaryTime(original.hours, original.minutes))
                                     setDays(original.days)
                                 }}>Update alarm</DropdownMenuItem>
-                                <DropdownMenuItem onMouseDown={() => setDeleteDialogOpen(true)}>Delete alarm</DropdownMenuItem>
+                                <DropdownMenuItem onMouseDown={() => {
+                                    setDropdownMenuOpen(false)
+                                    setDeleteDialogOpen(true)
+                                }}>Delete alarm</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Switch checked={original.isEnabled} onCheckedChange={(isChecked) => {
