@@ -18,20 +18,11 @@ use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static STATIC_DIR: Dir = include_dir!("src/dist");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()
-            }),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
     let alarm = Alarm::initialise()?;
     let state = AppState { alarm };
     let api_routes = Router::new()
@@ -50,7 +41,6 @@ async fn main() -> Result<()> {
                 .layer(CompressionLayer::new()),
         );
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await?;
     Ok(())
 }
