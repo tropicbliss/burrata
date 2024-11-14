@@ -5,7 +5,7 @@ mod scheduler;
 use alarm::{Alarm, AlarmEntry, AlarmId};
 use anyhow::Result;
 use axum::{
-    extract::{MatchedPath, Request, State},
+    extract::State,
     http::{header, HeaderName, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -17,9 +17,7 @@ use scheduler::SchedulerError;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::{
-    compression::CompressionLayer, decompression::RequestDecompressionLayer, trace::TraceLayer,
-};
+use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static STATIC_DIR: Dir = include_dir!("src/dist");
@@ -48,19 +46,6 @@ async fn main() -> Result<()> {
         .fallback(static_handler)
         .layer(
             ServiceBuilder::new()
-                .layer(
-                    TraceLayer::new_for_http()
-                        .make_span_with(|req: &Request| {
-                            let method = req.method();
-                            let uri = req.uri();
-                            let matched_path = req
-                                .extensions()
-                                .get::<MatchedPath>()
-                                .map(|matched_path| matched_path.as_str());
-                            tracing::debug_span!("request", %method, %uri, matched_path)
-                        })
-                        .on_failure(()),
-                )
                 .layer(RequestDecompressionLayer::new())
                 .layer(CompressionLayer::new()),
         );
