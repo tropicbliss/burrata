@@ -22,7 +22,7 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-static STATIC_DIR: Dir = include_dir!("../client/dist");
+static STATIC_DIR: Dir = include_dir!("src/dist");
 
 #[tokio::main]
 async fn main() -> Result<()> {
