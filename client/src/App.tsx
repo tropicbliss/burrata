@@ -74,6 +74,7 @@ function App() {
 
   const addAlarm = useMutation({
     mutationFn: async (data: AlarmWithoutId) => {
+      const previousAlarms = queryClient.getQueryData(queryKey)
       const response = await errorHandlingFetch<{ id: number }>(true, "/api/alarm", {
         method: "POST",
         headers: {
@@ -81,15 +82,21 @@ function App() {
         },
         body: JSON.stringify(data)
       })
-      return { ...data, id: response.id }
-    },
-    onSuccess: (newAlarm: Alarm) => {
-      queryClient.setQueryData(queryKey, (oldAlarms: Alarm[]) => [...oldAlarms, newAlarm])
       setAddAlarmOpen(false)
+      return {
+        newAlarm: { ...data, id: response.id },
+        previousAlarms
+      }
+    },
+    onSuccess: ({ newAlarm }: { newAlarm: Alarm }) => {
+      queryClient.setQueryData(queryKey, (oldAlarms: Alarm[]) => [...oldAlarms, newAlarm])
       const formattedToast = formatAlarmSetToast(newAlarm.days, newAlarm.hours, newAlarm.minutes)
       toast.success(formattedToast)
     },
-    onError: (err) => {
+    onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
+      if (context) {
+        queryClient.setQueryData(queryKey, context.previousAlarms)
+      }
       toast.error("Failed to add alarm", {
         description: err.message
       })
@@ -98,7 +105,7 @@ function App() {
 
   const stopAlarm = useMutation({
     mutationFn: async () => {
-      errorHandlingFetch<void>(false, "/api/stop")
+      await errorHandlingFetch<void>(false, "/api/stop")
     },
     onSuccess: () => {
       toast.success("Successfully stopped alarm")

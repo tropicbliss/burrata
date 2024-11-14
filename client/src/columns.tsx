@@ -126,12 +126,12 @@ export const columns: ColumnDef<Alarm>[] = [
                     toast.success("Alarm deleted successfully")
                 },
                 onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
-                    toast.error("Failed to delete alarm", {
-                        description: err.message
-                    })
                     if (context) {
                         queryClient.setQueryData(queryKey, context.previousAlarms)
                     }
+                    toast.error("Failed to delete alarm", {
+                        description: err.message
+                    })
                 }
             })
 
@@ -166,12 +166,12 @@ export const columns: ColumnDef<Alarm>[] = [
                     }
                 },
                 onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
-                    toast.error("Failed to update alarm", {
-                        description: err.message
-                    })
                     if (context) {
                         queryClient.setQueryData(queryKey, context.previousAlarms)
                     }
+                    toast.error("Failed to update alarm", {
+                        description: err.message
+                    })
                 }
             })
 
@@ -193,13 +193,13 @@ export const columns: ColumnDef<Alarm>[] = [
                                     <div className="grid w-full max-w-sm items-center gap-1.5">
                                         <Label>Days</Label>
                                         <ToggleGroup type="multiple" variant="outline" value={days.map((day) => day.toString())} onValueChange={(days) => setDays(days.map((day) => Number(day)))}>
+                                            <ToggleGroupItem value="0">S</ToggleGroupItem>
                                             <ToggleGroupItem value="1">M</ToggleGroupItem>
                                             <ToggleGroupItem value="2">T</ToggleGroupItem>
                                             <ToggleGroupItem value="3">W</ToggleGroupItem>
                                             <ToggleGroupItem value="4">T</ToggleGroupItem>
                                             <ToggleGroupItem value="5">F</ToggleGroupItem>
                                             <ToggleGroupItem value="6">S</ToggleGroupItem>
-                                            <ToggleGroupItem value="7">S</ToggleGroupItem>
                                         </ToggleGroup>
                                     </div>
                                 </div>
