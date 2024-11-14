@@ -5,10 +5,8 @@ mod scheduler;
 use alarm::{Alarm, AlarmEntry, AlarmId};
 use anyhow::Result;
 use axum::{
-    body::Body,
     extract::{MatchedPath, Request, State},
-    http::{header, HeaderValue, StatusCode, Uri},
-    middleware::{from_fn, Next},
+    http::{header, HeaderName, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Json, Router,
@@ -19,7 +17,9 @@ use scheduler::SchedulerError;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+use tower_http::{
+    compression::CompressionLayer, decompression::RequestDecompressionLayer, trace::TraceLayer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static STATIC_DIR: Dir = include_dir!("../client/dist");
@@ -48,7 +48,6 @@ async fn main() -> Result<()> {
         .fallback(static_handler)
         .layer(
             ServiceBuilder::new()
-                .layer(from_fn(frontend_middleware))
                 .layer(
                     TraceLayer::new_for_http()
                         .make_span_with(|req: &Request| {
@@ -61,7 +60,9 @@ async fn main() -> Result<()> {
                             tracing::debug_span!("request", %method, %uri, matched_path)
                         })
                         .on_failure(()),
-                ),
+                )
+                .layer(RequestDecompressionLayer::new())
+                .layer(CompressionLayer::new()),
         );
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
@@ -82,7 +83,17 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
                 .to_string();
             (
                 StatusCode::OK,
-                [(header::CONTENT_TYPE, mime_type)],
+                [
+                    (header::CONTENT_TYPE, mime_type),
+                    (
+                        header::CACHE_CONTROL,
+                        "public, max-age=31536000".to_string(),
+                    ),
+                    (
+                        HeaderName::from_static("x-clacks-overhead"),
+                        "GNU Terry Pratchett".to_string(),
+                    ),
+                ],
                 contents,
             )
                 .into_response()
@@ -94,23 +105,6 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
 #[derive(Clone)]
 struct AppState {
     alarm: Alarm,
-}
-
-async fn frontend_middleware(uri: Uri, request: Request<Body>, next: Next) -> impl IntoResponse {
-    let mut response = next.run(request).await;
-    if !uri.path().starts_with("/api") && response.status() == StatusCode::OK {
-        response.headers_mut().insert(
-            "cache-control",
-            HeaderValue::from_static("public, max-age=31536000"),
-        );
-    }
-    if uri.path() == "/" {
-        response.headers_mut().insert(
-            "x-clacks-overhead",
-            HeaderValue::from_static("GNU Terry Pratchett"),
-        );
-    }
-    response
 }
 
 async fn get_all_alarms(
