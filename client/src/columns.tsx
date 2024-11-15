@@ -109,7 +109,6 @@ export const columns: ColumnDef<Alarm>[] = [
 
             const deleteAlarm = useMutation({
                 mutationFn: async (id: number) => {
-                    const previousAlarms = queryClient.getQueryData(queryKey)
                     queryClient.setQueryData(queryKey, (old: Alarm[]) => old.filter((alarm) => alarm.id !== id))
                     await errorHandlingFetch<void>(false, "/api/alarm", {
                         method: "DELETE",
@@ -118,18 +117,17 @@ export const columns: ColumnDef<Alarm>[] = [
                         },
                         body: JSON.stringify({ id })
                     })
-                    return { previousAlarms }
                 },
                 onSuccess: () => {
                     toast.success("Alarm deleted successfully")
                 },
-                onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
-                    if (context) {
-                        queryClient.setQueryData(queryKey, context.previousAlarms)
-                    }
+                onError: (err) => {
                     toast.error("Failed to delete alarm", {
                         description: err.message
                     })
+                },
+                onSettled: () => {
+                    queryClient.invalidateQueries({ queryKey })
                 }
             })
 
@@ -139,7 +137,6 @@ export const columns: ColumnDef<Alarm>[] = [
                     if (!isDelete) {
                         updatedAlarm.isEnabled = true
                     }
-                    const previousAlarms = queryClient.getQueryData(queryKey)
                     queryClient.setQueryData(queryKey, (old: Alarm[]) => old.map((alarm) => {
                         if (alarm.id === data.alarm.id) {
                             return updatedAlarm
@@ -154,7 +151,7 @@ export const columns: ColumnDef<Alarm>[] = [
                         },
                         body: JSON.stringify(updatedAlarm)
                     })
-                    return { previousAlarms, updatedAlarm }
+                    return { updatedAlarm }
                 },
                 onSuccess: (data) => {
                     if (data.updatedAlarm.isEnabled) {
@@ -163,13 +160,13 @@ export const columns: ColumnDef<Alarm>[] = [
                         toast.success(formattedToast)
                     }
                 },
-                onError: (err, _, context?: { previousAlarms: Alarm[] }) => {
-                    if (context) {
-                        queryClient.setQueryData(queryKey, context.previousAlarms)
-                    }
+                onError: (err) => {
                     toast.error("Failed to update alarm", {
                         description: err.message
                     })
+                },
+                onSettled: () => {
+                    queryClient.invalidateQueries({ queryKey })
                 }
             })
 
