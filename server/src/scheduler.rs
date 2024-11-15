@@ -1,3 +1,4 @@
+use crate::alarm::AlarmId;
 use anyhow::Result;
 use jiff::{civil::Weekday, Zoned};
 use std::{
@@ -7,8 +8,6 @@ use std::{
 };
 use thiserror::Error;
 use tokio::task::AbortHandle;
-
-use crate::alarm::AlarmId;
 
 #[derive(Error, Debug, Clone)]
 pub enum SchedulerError {
