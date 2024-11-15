@@ -3,7 +3,7 @@ import { columns } from "./columns"
 import { DataTable } from "./data-table"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlarmClockOff, AlarmClockPlus, AlertCircle, SearchX } from "lucide-react"
+import { AlarmClockOff, AlarmClockPlus, AlertCircle, BellElectric, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -124,7 +124,7 @@ function App() {
     <div className="space-y-4">
       <div className="border-b">
         <div className="flex h-16 justify-between items-center px-4">
-          <div className="scroll-m-20 text-2xl font-semibold tracking-tight select-none">Alarm</div>
+          <div className="scroll-m-20 text-2xl font-semibold tracking-tight select-none flex items-center gap-2"><BellElectric className="hidden sm:block" /> Alarm</div>
           <div className="space-x-3">
             <Dialog open={isAddAlarmOpen} onOpenChange={setAddAlarmOpen}>
               <DialogTrigger asChild>
