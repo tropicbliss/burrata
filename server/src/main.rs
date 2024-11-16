@@ -19,8 +19,6 @@ use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
 
-static STATIC_DIR: Dir = include_dir!("src/dist");
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let alarm = Alarm::initialise()?;
@@ -46,6 +44,7 @@ async fn main() -> Result<()> {
 }
 
 async fn static_handler(uri: Uri) -> impl IntoResponse {
+    static STATIC_DIR: Dir = include_dir!("src/dist");
     let mut path = uri.path().trim_start_matches('/');
     if path.is_empty() {
         path = "index.html";

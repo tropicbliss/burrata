@@ -82,6 +82,8 @@ impl Scheduler {
                         .min()
                         .unwrap()
                 }
+                .start_of_day()
+                .unwrap()
                 .with()
                 .hour(schedule.hours as i8)
                 .minute(schedule.minutes as i8)
