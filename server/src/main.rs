@@ -2,8 +2,6 @@ mod alarm;
 mod db;
 mod scheduler;
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 use alarm::{Alarm, AlarmEntry, AlarmId};
 use anyhow::Result;
 use axum::{
@@ -17,6 +15,7 @@ use db::DbEntry;
 use include_dir::{include_dir, Dir};
 use scheduler::SchedulerError;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::TcpSocket;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
