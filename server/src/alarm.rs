@@ -118,12 +118,14 @@ impl Alarm {
         let initial = db.get_all()?;
         let (tx, rx) = mpsc::channel();
         for alarm_entry in initial {
-            let tx = tx.clone();
-            scheduler.add_schedule(
-                AlarmId(alarm_entry.id),
-                alarm_entry.value.into(),
-                move || alarm_job(tx.clone()),
-            )?;
+            if alarm_entry.value.is_enabled {
+                let tx = tx.clone();
+                scheduler.add_schedule(
+                    AlarmId(alarm_entry.id),
+                    alarm_entry.value.into(),
+                    move || alarm_job(tx.clone()),
+                )?;
+            }
         }
         std::thread::spawn(move || {
             let alarm = include_bytes!("../sounds/Alarm_Classic.wav");
