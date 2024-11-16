@@ -58,7 +58,6 @@ function App() {
   const { data, error } = useQuery({
     queryKey,
     queryFn: getData,
-    staleTime: Infinity,
   })
 
   const [time, setTime] = useState("")
