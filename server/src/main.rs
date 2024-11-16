@@ -2,6 +2,8 @@ mod alarm;
 mod db;
 mod scheduler;
 
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
 use alarm::{Alarm, AlarmEntry, AlarmId};
 use anyhow::Result;
 use axum::{
@@ -15,7 +17,7 @@ use db::DbEntry;
 use include_dir::{include_dir, Dir};
 use scheduler::SchedulerError;
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpListener;
+use tokio::net::TcpSocket;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
 
@@ -38,7 +40,10 @@ async fn main() -> Result<()> {
                 .layer(RequestDecompressionLayer::new())
                 .layer(CompressionLayer::new()),
         );
-    let listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let socket = TcpSocket::new_v4()?;
+    socket.set_nodelay(true)?;
+    socket.bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080))?;
+    let listener = socket.listen(1024)?;
     axum::serve(listener, app).await?;
     Ok(())
 }
