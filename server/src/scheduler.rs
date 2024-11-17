@@ -50,9 +50,15 @@ impl Scheduler {
         self.on_loop_done = Some(Arc::new(callback));
     }
 
-    pub fn add_schedule<G>(&self, id: AlarmId, schedule: SchedulerEntry, mut task: G) -> Result<()>
+    pub fn add_schedule<G, Fut>(
+        &self,
+        id: AlarmId,
+        schedule: SchedulerEntry,
+        mut task: G,
+    ) -> Result<()>
     where
-        G: FnMut() + 'static + Send,
+        G: FnMut() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = anyhow::Result<()>>,
     {
         let mut id_mapping = self.id_mapping.lock().unwrap();
         if id_mapping.contains_key(&id) {

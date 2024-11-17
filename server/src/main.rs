@@ -30,6 +30,7 @@ async fn main() -> Result<()> {
         .route("/alarm", delete(delete_alarm))
         .route("/alarm", put(update_alarm))
         .route("/stop", get(stop_alarm))
+        .route("/start", get(start_alarm))
         .with_state(state);
     let app = Router::new()
         .nest("/api", api_routes)
@@ -93,7 +94,11 @@ async fn get_all_alarms(
 }
 
 async fn stop_alarm(State(AppState { alarm }): State<AppState>) {
-    alarm.stop_alarm();
+    alarm.stop_alarm().unwrap();
+}
+
+async fn start_alarm(State(AppState { alarm }): State<AppState>) {
+    alarm.start_alarm().await.unwrap();
 }
 
 #[derive(Deserialize, Serialize)]

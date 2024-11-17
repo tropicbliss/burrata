@@ -183,11 +183,22 @@ impl Alarm {
         Ok(())
     }
 
-    pub fn stop_alarm(&self) {
-        self.tx.send(AlarmMessage::Stop).unwrap();
+    pub fn stop_alarm(&self) -> Result<()> {
+        self.tx.send(AlarmMessage::Stop)?;
+        Ok(())
+    }
+
+    pub async fn start_alarm(&self) -> Result<()> {
+        alarm_job(self.tx.clone()).await?;
+        Ok(())
     }
 }
 
-fn alarm_job(tx: Sender<AlarmMessage>) {
+async fn alarm_job(tx: Sender<AlarmMessage>) -> Result<()> {
     tx.send(AlarmMessage::Start).unwrap();
+    tokio::task::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(15 * 60)).await;
+        tx.send(AlarmMessage::Stop).unwrap();
+    });
+    Ok(())
 }
