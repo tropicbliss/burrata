@@ -50,15 +50,9 @@ impl Scheduler {
         self.on_loop_done = Some(Arc::new(callback));
     }
 
-    pub fn add_schedule<G, Fut>(
-        &self,
-        id: AlarmId,
-        schedule: SchedulerEntry,
-        mut task: G,
-    ) -> Result<()>
+    pub fn add_schedule<G>(&self, id: AlarmId, schedule: SchedulerEntry, mut task: G) -> Result<()>
     where
-        G: FnMut() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = anyhow::Result<()>>,
+        G: FnMut() -> anyhow::Result<()> + Send + 'static,
     {
         let mut id_mapping = self.id_mapping.lock().unwrap();
         if id_mapping.contains_key(&id) {
@@ -97,7 +91,7 @@ impl Scheduler {
                 .unwrap();
                 let duration_until = Zoned::now().duration_until(&alarm_time);
                 tokio::time::sleep(Duration::from_secs_f64(duration_until.as_secs_f64())).await;
-                task();
+                task().unwrap();
                 if schedule.days.is_empty() {
                     break;
                 }

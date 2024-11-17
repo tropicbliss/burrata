@@ -189,13 +189,13 @@ impl Alarm {
     }
 
     pub async fn start_alarm(&self) -> Result<()> {
-        alarm_job(self.tx.clone()).await?;
+        alarm_job(self.tx.clone())?;
         Ok(())
     }
 }
 
-async fn alarm_job(tx: Sender<AlarmMessage>) -> Result<()> {
-    tx.send(AlarmMessage::Start).unwrap();
+fn alarm_job(tx: Sender<AlarmMessage>) -> Result<()> {
+    tx.send(AlarmMessage::Start)?;
     tokio::task::spawn(async move {
         tokio::time::sleep(Duration::from_secs(15 * 60)).await;
         tx.send(AlarmMessage::Stop).unwrap();

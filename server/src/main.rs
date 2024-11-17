@@ -16,7 +16,6 @@ use include_dir::{include_dir, Dir};
 use scheduler::SchedulerError;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use tokio::net::TcpSocket;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, decompression::RequestDecompressionLayer};
 
@@ -40,10 +39,8 @@ async fn main() -> Result<()> {
                 .layer(RequestDecompressionLayer::new())
                 .layer(CompressionLayer::new()),
         );
-    let socket = TcpSocket::new_v4()?;
-    socket.set_nodelay(true)?;
-    socket.bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080))?;
-    let listener = socket.listen(1024)?;
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
